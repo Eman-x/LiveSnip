@@ -25,11 +25,12 @@ LiveSnip is a small menu bar app for macOS, like TextSniper but free and open so
 
 ## Features
 
-- **Live Text accuracy.** Uses VisionKit's `ImageAnalyzer`, the same on-device engine as Live Text in Photos and Preview. Nothing leaves your Mac.
+- **Live Text accuracy.** Uses VisionKit's `ImageAnalyzer`, the same on-device engine as Live Text in Photos and Preview. Your captures never leave your Mac.
 - **English, Arabic, Spanish, and more.** Reads every language Live Text does, accents and right-to-left text included. That also covers Chinese, Japanese, Korean, French, German, Portuguese, and others.
 - **Your shortcut.** Keep ⇧⌘2 or record any shortcut you like.
 - **Stays out of the way.** Lives in the menu bar, can open at login, confirms each copy with a small toast, and never steals focus.
 - **Keep or join lines.** Keep the original line breaks, or turn them off to get one clean paragraph.
+- **Updates itself.** Checks for new versions once a day and installs them in place, but only when they're signed with LiveSnip's own certificate.
 
 <p align="center">
   <img src="docs/arabic.png" width="49%" alt="Arabic text copied with LiveSnip">
@@ -54,7 +55,7 @@ Requires macOS 26 Tahoe or later, on Apple Silicon or Intel.
 
 To use a different shortcut, choose **Change Shortcut…** from the menu bar icon and press the keys you want. To start LiveSnip with your Mac, choose **Open at Login**. **Settings…** has all of this plus the permission status, and its **About** tab has a **Send Feedback** button. If your menu bar is too full to show the icon, open LiveSnip again from Applications or Spotlight to get the settings window.
 
-The menu also has **Keep Line Breaks** and **Quit**.
+LiveSnip shows in the Dock while it's open. Quit it from the Dock and it can keep running in the menu bar instead; choose what happens in **Settings → General**. The menu bar menu also has **Keep Line Breaks**, **Check for Updates…**, and **Quit**.
 
 LiveSnip also reads image files from the terminal:
 
@@ -73,6 +74,8 @@ cd LiveSnip
 ```
 
 `./build.sh` builds `build/LiveSnip.app` and a release zip, and `install` also copies the app to `~/Applications` and launches it.
+
+Releases are signed with a self-signed certificate named **LiveSnip Signing** (in Keychain Access: Certificate Assistant → Create a Certificate, type Code Signing). A stable certificate keeps LiveSnip's Screen Recording permission across updates, and the updater only installs builds signed with it. Without it, `./build.sh` makes an ad-hoc build that can't update itself.
 
 ## License
 

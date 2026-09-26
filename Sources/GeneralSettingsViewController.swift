@@ -1,13 +1,15 @@
 import AppKit
 import Carbon.HIToolbox
 
-/// The General tab: the Capture Text shortcut, opening at login, and line breaks.
+/// The General tab: the Capture Text shortcut, opening at login, line breaks, updates, and quitting.
 @MainActor
 final class GeneralSettingsViewController: NSViewController {
     private let recorder = NSButton()
     private let message = NSTextField(wrappingLabelWithString: "")
     private let openAtLogin = NSButton(checkboxWithTitle: "Open LiveSnip at login", target: nil, action: nil)
     private let keepLineBreaks = NSButton(checkboxWithTitle: "Keep line breaks when copying", target: nil, action: nil)
+    private let checkForUpdates = NSButton(checkboxWithTitle: "Check for updates automatically", target: nil, action: nil)
+    private let quitBehavior = NSPopUpButton()
     private var shortcut: Shortcut
     private var monitor: Any?
     /// Called before recording, so pressing the current shortcut doesn't start a capture.
@@ -49,13 +51,24 @@ final class GeneralSettingsViewController: NSViewController {
         openAtLogin.action = #selector(toggleOpenAtLogin)
         keepLineBreaks.target = self
         keepLineBreaks.action = #selector(toggleLineBreaks)
+        checkForUpdates.target = self
+        checkForUpdates.action = #selector(toggleUpdateChecks)
 
-        let stack = NSStackView(views: [heading, shortcutRow, message, separator, openAtLogin, keepLineBreaks])
+        let quitLabel = NSTextField(labelWithString: "Quitting from the Dock:")
+        quitBehavior.addItems(withTitles: AppDelegate.QuitBehavior.allCases.map(\.title))
+        quitBehavior.target = self
+        quitBehavior.action = #selector(chooseQuitBehavior)
+        let quitRow = NSStackView(views: [quitLabel, quitBehavior])
+        quitRow.spacing = 8
+
+        let stack = NSStackView(views: [heading, shortcutRow, message, separator, openAtLogin, keepLineBreaks,
+                                        checkForUpdates, quitRow])
         stack.orientation = .vertical
         stack.alignment = .leading
         stack.spacing = 10
         stack.setCustomSpacing(16, after: message)
         stack.setCustomSpacing(16, after: separator)
+        stack.setCustomSpacing(14, after: checkForUpdates)
         stack.edgeInsets = NSEdgeInsets(top: 22, left: 24, bottom: 24, right: 24)
         NSLayoutConstraint.activate([
             stack.widthAnchor.constraint(equalToConstant: 420),
@@ -77,6 +90,8 @@ final class GeneralSettingsViewController: NSViewController {
     func refresh() {
         openAtLogin.state = LoginItem.isEnabled ? .on : .off
         keepLineBreaks.state = UserDefaults.standard.bool(forKey: AppDelegate.keepLineBreaksKey) ? .on : .off
+        checkForUpdates.state = UserDefaults.standard.bool(forKey: Updater.automaticChecksKey) ? .on : .off
+        quitBehavior.selectItem(at: AppDelegate.QuitBehavior.allCases.firstIndex(of: AppDelegate.quitBehavior) ?? 0)
         guard monitor == nil else { return }
         recorder.title = shortcut.displayName
         setMessage("Click the shortcut to change it.")
@@ -140,6 +155,14 @@ final class GeneralSettingsViewController: NSViewController {
 
     @objc private func toggleLineBreaks() {
         UserDefaults.standard.set(keepLineBreaks.state == .on, forKey: AppDelegate.keepLineBreaksKey)
+    }
+
+    @objc private func toggleUpdateChecks() {
+        UserDefaults.standard.set(checkForUpdates.state == .on, forKey: Updater.automaticChecksKey)
+    }
+
+    @objc private func chooseQuitBehavior() {
+        AppDelegate.quitBehavior = AppDelegate.QuitBehavior.allCases[quitBehavior.indexOfSelectedItem]
     }
 
     private func setMessage(_ text: String, isError: Bool = false) {

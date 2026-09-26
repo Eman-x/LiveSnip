@@ -2,6 +2,19 @@
 
 All notable changes to LiveSnip are documented here. The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and LiveSnip follows [Semantic Versioning](https://semver.org/).
 
+## [1.4.0] - 2026-09-26
+
+### Added
+
+- **Automatic updates.** LiveSnip checks GitHub once a day, or when you choose **Check for Updates…**, and installs new versions in place after confirming they're signed with LiveSnip's own certificate. Turn it off in **Settings → General**.
+- **Dock icon.** LiveSnip shows in the Dock when you open it. Quitting from the Dock asks whether to keep it running in the menu bar; you can remember the answer, or change it in **Settings → General**.
+- **Check Again** on the Permissions tab, which checks Screen Recording again without restarting LiveSnip. Coming back from System Settings checks automatically too.
+
+### Changed
+
+- Releases are signed with a stable certificate, so Screen Recording stays allowed across updates. Updating from 1.3.0 asks for it one last time.
+- Opened at login, LiveSnip starts in the menu bar only.
+
 ## [1.3.0] - 2026-09-26
 
 ### Added
@@ -46,6 +59,7 @@ All notable changes to LiveSnip are documented here. The format is based on [Kee
 - `--ocr <image>` command-line mode that prints the text in an image file.
 - Universal build for Apple Silicon and Intel Macs running macOS 26 or later.
 
+[1.4.0]: https://github.com/Eman-x/LiveSnip/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/Eman-x/LiveSnip/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/Eman-x/LiveSnip/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/Eman-x/LiveSnip/compare/v1.0.0...v1.1.0

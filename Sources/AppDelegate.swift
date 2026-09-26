@@ -4,7 +4,29 @@ import AppKit
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     static let keepLineBreaksKey = "keepLineBreaks"
 
+    /// What quitting from the Dock or with ⌘Q does.
+    enum QuitBehavior: String, CaseIterable {
+        case ask, menuBar, quit
+
+        var title: String {
+            switch self {
+            case .ask: "Ask each time"
+            case .menuBar: "Keep in the menu bar"
+            case .quit: "Quit completely"
+            }
+        }
+    }
+
+    static var quitBehavior: QuitBehavior {
+        get { QuitBehavior(rawValue: UserDefaults.standard.string(forKey: "quitBehavior") ?? "") ?? .ask }
+        set { UserDefaults.standard.set(newValue.rawValue, forKey: "quitBehavior") }
+    }
+
+    /// Set to quit without the menu bar question: for Quit in the menu bar menu, updates, and restarts.
+    static var quitsWithoutAsking = false
+
     private let hud = HUD()
+    private lazy var updater = Updater(hud: hud)
     private var statusItem: NSStatusItem!
     private let permissionItem = NSMenuItem(title: "Allow Screen Recording…", action: #selector(AppDelegate.showPermissions), keyEquivalent: "")
     private let captureItem = NSMenuItem(title: "Capture Text", action: #selector(AppDelegate.captureText), keyEquivalent: "")
@@ -20,7 +42,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         finishRecording: { [weak self] in self?.finishRecording($0) ?? false })
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        UserDefaults.standard.register(defaults: [Self.keepLineBreaksKey: true])
+        UserDefaults.standard.register(defaults: [Self.keepLineBreaksKey: true, Updater.automaticChecksKey: true])
+
+        // Opened by someone, LiveSnip shows in the Dock. Opened at login, it stays in the menu bar.
+        if LoginItem.launchedAtLogin { NSApp.setActivationPolicy(.accessory) }
+        NSApp.mainMenu = makeMainMenu()
+        updater.startAutomaticChecks()
 
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         statusItem.button?.image = NSImage(systemSymbolName: "text.viewfinder", accessibilityDescription: "LiveSnip")
@@ -47,8 +74,54 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     /// Opening LiveSnip while it's running shows its settings, which helps when the
     /// menu bar is too full to show the icon.
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        NSApp.setActivationPolicy(.regular)
         settingsWindow.show(ScreenRecording.isAllowed ? .general : .permissions)
         return false
+    }
+
+    /// Quitting from the Dock or with ⌘Q can keep LiveSnip running in the menu bar instead.
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        guard !Self.quitsWithoutAsking, NSApp.activationPolicy() == .regular, !Self.isSystemQuit else { return .terminateNow }
+
+        var keepInMenuBar = Self.quitBehavior == .menuBar
+        if Self.quitBehavior == .ask {
+            let alert = NSAlert()
+            alert.messageText = "Keep LiveSnip in the menu bar?"
+            alert.informativeText = "It keeps running without a Dock icon, so \(shortcut.displayName) still works. "
+                + "You can quit it from the menu bar icon at any time."
+            alert.addButton(withTitle: "Keep in Menu Bar")
+            alert.addButton(withTitle: "Quit")
+            alert.showsSuppressionButton = true
+            alert.suppressionButton?.title = "Remember my choice"
+            keepInMenuBar = alert.runModal() == .alertFirstButtonReturn
+            if alert.suppressionButton?.state == .on { Self.quitBehavior = keepInMenuBar ? .menuBar : .quit }
+        }
+        guard keepInMenuBar else { return .terminateNow }
+
+        settingsWindow.close()
+        NSApp.setActivationPolicy(.accessory)
+        hud.show(symbol: "menubar.arrow.up.rectangle", title: "LiveSnip is still running",
+                 detail: "Press \(shortcut.displayName) to capture text")
+        return .terminateCancel
+    }
+
+    /// Logging out, restarting, and shutting down send a quit with a reason, and shouldn't be held up.
+    private static var isSystemQuit: Bool {
+        guard let event = NSAppleEventManager.shared().currentAppleEvent, event.eventID == kAEQuitApplication else { return false }
+        return event.paramDescriptor(forKeyword: kAEQuitReason) != nil
+            || event.attributeDescriptor(forKeyword: kAEQuitReason) != nil
+    }
+
+    /// Quits and opens LiveSnip again, to apply an update or a newly allowed permission.
+    static func relaunch() {
+        quitsWithoutAsking = true
+        let reopen = Process()
+        reopen.executableURL = URL(fileURLWithPath: "/bin/sh")
+        // Wait for this process to exit, then open the app again.
+        reopen.arguments = ["-c", "while /bin/kill -0 \"$1\" 2>/dev/null; do /bin/sleep 0.1; done; /usr/bin/open \"$0\"",
+                            Bundle.main.bundlePath, String(ProcessInfo.processInfo.processIdentifier)]
+        try? reopen.run()
+        NSApp.terminate(nil)
     }
 
     func menuNeedsUpdate(_ menu: NSMenu) {
@@ -76,14 +149,52 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.addItem(.separator())
 
         let settings = NSMenuItem(title: "Settings…", action: #selector(showSettings), keyEquivalent: ",")
+        let updates = NSMenuItem(title: "Check for Updates…", action: #selector(checkForUpdates(_:)), keyEquivalent: "")
         let about = NSMenuItem(title: "About LiveSnip", action: #selector(showAbout), keyEquivalent: "")
-        for item in [settings, about] {
+        let quit = NSMenuItem(title: "Quit LiveSnip", action: #selector(quitCompletely), keyEquivalent: "q")
+        for item in [settings, updates, about, quit] {
             item.target = self
             menu.addItem(item)
         }
-        menu.addItem(NSMenuItem(title: "Quit LiveSnip", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
         menu.delegate = self
         return menu
+    }
+
+    /// The app menu and Window menu, shown while LiveSnip is in the Dock.
+    private func makeMainMenu() -> NSMenu {
+        let appMenu = NSMenu()
+        for (title, action, key) in [("About LiveSnip", #selector(showAbout), ""),
+                                     ("Check for Updates…", #selector(checkForUpdates(_:)), ""),
+                                     ("Settings…", #selector(showSettings), ",")] {
+            appMenu.addItem(withTitle: title, action: action, keyEquivalent: key).target = self
+        }
+        appMenu.addItem(.separator())
+        appMenu.addItem(withTitle: "Hide LiveSnip", action: #selector(NSApplication.hide(_:)), keyEquivalent: "h")
+        appMenu.addItem(.separator())
+        appMenu.addItem(withTitle: "Quit LiveSnip", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+
+        let windowMenu = NSMenu(title: "Window")
+        windowMenu.addItem(withTitle: "Close", action: #selector(NSWindow.performClose(_:)), keyEquivalent: "w")
+        windowMenu.addItem(withTitle: "Minimize", action: #selector(NSWindow.performMiniaturize(_:)), keyEquivalent: "m")
+        NSApp.windowsMenu = windowMenu
+
+        let main = NSMenu()
+        for submenu in [appMenu, windowMenu] {
+            let item = NSMenuItem()
+            item.submenu = submenu
+            main.addItem(item)
+        }
+        return main
+    }
+
+    @objc func checkForUpdates(_ sender: Any?) {
+        updater.check(userInitiated: true)
+    }
+
+    /// Quit from the menu bar menu means quit, so it skips the menu bar question.
+    @objc private func quitCompletely() {
+        Self.quitsWithoutAsking = true
+        NSApp.terminate(nil)
     }
 
     @objc private func showPermissions() {

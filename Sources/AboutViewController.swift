@@ -20,19 +20,24 @@ final class AboutViewController: NSViewController {
         let feedback = NSButton(title: "Send Feedback…", target: self, action: #selector(sendFeedback))
         feedback.controlSize = .large
         feedback.keyEquivalent = "\r"
+        // No target: the app delegate handles it, the same as the menu item.
+        let update = NSButton(title: "Check for Updates…", target: nil, action: #selector(AppDelegate.checkForUpdates(_:)))
+        update.controlSize = .large
+        let buttons = NSStackView(views: [feedback, update])
+        buttons.spacing = 10
         let links = NSStackView(views: [link("Website", #selector(openWebsite)), link("Source on GitHub", #selector(openGitHub))])
         links.spacing = 18
         let credit = NSTextField(labelWithString: "© 2026 Eman Alamari · MIT License")
         credit.font = .systemFont(ofSize: 11)
         credit.textColor = .tertiaryLabelColor
 
-        let stack = NSStackView(views: [icon, name, version, summary, feedback, links, credit])
+        let stack = NSStackView(views: [icon, name, version, summary, buttons, links, credit])
         stack.orientation = .vertical
         stack.spacing = 6
         stack.setCustomSpacing(10, after: icon)
         stack.setCustomSpacing(12, after: version)
         stack.setCustomSpacing(20, after: summary)
-        stack.setCustomSpacing(14, after: feedback)
+        stack.setCustomSpacing(14, after: buttons)
         stack.setCustomSpacing(18, after: links)
         stack.edgeInsets = NSEdgeInsets(top: 24, left: 24, bottom: 22, right: 24)
         NSLayoutConstraint.activate([
