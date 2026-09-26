@@ -10,6 +10,8 @@ app=build/LiveSnip.app
 rm -rf build
 mkdir -p "$app/Contents/MacOS"
 cp Info.plist "$app/Contents/"
+mkdir -p "$app/Contents/Resources"
+cp Resources/AppIcon.icns "$app/Contents/Resources/"
 for arch in arm64 x86_64; do
   swiftc -O -parse-as-library -module-name LiveSnip -target "$arch-apple-macos26.0" \
     Sources/*.swift -o "build/LiveSnip-$arch"

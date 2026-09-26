@@ -2,6 +2,14 @@
 
 All notable changes to LiveSnip are documented here. The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and LiveSnip follows [Semantic Versioning](https://semver.org/).
 
+## [1.1.0] - 2026-09-26
+
+### Added
+
+- App icon.
+- **Change Shortcut…** in the menu bar menu records a new shortcut for Capture Text and remembers it.
+- Opening LiveSnip while it's running shows the shortcut window, for when the menu bar is too full to show the icon.
+
 ## [1.0.0] - 2026-09-26
 
 ### Added
@@ -15,4 +23,5 @@ All notable changes to LiveSnip are documented here. The format is based on [Kee
 - `--ocr <image>` command-line mode that prints the text in an image file.
 - Universal build for Apple Silicon and Intel Macs running macOS 26 or later.
 
+[1.1.0]: https://github.com/Eman-x/LiveSnip/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/Eman-x/LiveSnip/releases/tag/v1.0.0

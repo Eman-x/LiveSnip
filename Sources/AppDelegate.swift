@@ -1,14 +1,4 @@
 import AppKit
-import Carbon.HIToolbox
-
-/// The capture shortcut: ⇧⌘2, the same default as TextSniper. Change these values together.
-private enum Shortcut {
-    static let keyCode = kVK_ANSI_2
-    static let modifiers = cmdKey | shiftKey
-    static let menuKey = "2"
-    static let menuModifiers: NSEvent.ModifierFlags = [.command, .shift]
-    static let display = "⇧⌘2"
-}
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
@@ -16,9 +6,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private let hud = HUD()
     private var statusItem: NSStatusItem!
+    private let captureItem = NSMenuItem(title: "Capture Text", action: #selector(AppDelegate.captureText), keyEquivalent: "")
+    private var shortcut = Shortcut.saved
     private var hotKey: HotKey?
     private var isCapturing = false
     private var requestedScreenAccess = false
+
+    private lazy var shortcutWindow = ShortcutWindowController(
+        shortcut: shortcut,
+        beginRecording: { [weak self] in self?.hotKey = nil },
+        finishRecording: { [weak self] in self?.finishRecording($0) ?? false })
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         UserDefaults.standard.register(defaults: [Self.keepLineBreaksKey: true])
@@ -27,35 +24,73 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         statusItem.button?.image = NSImage(systemSymbolName: "text.viewfinder", accessibilityDescription: "LiveSnip")
         statusItem.menu = makeMenu()
 
-        hotKey = HotKey(keyCode: Shortcut.keyCode, modifiers: Shortcut.modifiers) { [weak self] in
-            self?.captureText()
-        }
-        if hotKey == nil {
-            hud.show(symbol: "exclamationmark.triangle", title: "\(Shortcut.display) is already in use",
-                     detail: "Capture from the menu bar icon instead")
-        } else {
+        if registerHotKey() {
             hud.show(symbol: "text.viewfinder", title: "LiveSnip is running",
-                     detail: "Press \(Shortcut.display) to capture text")
+                     detail: "Press \(shortcut.displayName) to capture text")
+        } else {
+            hud.show(symbol: "exclamationmark.triangle", title: "\(shortcut.displayName) is already in use",
+                     detail: "Open LiveSnip again to pick another shortcut")
         }
+    }
+
+    /// Opening LiveSnip while it's running shows the shortcut window, which helps when the
+    /// menu bar is too full to show the icon.
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        showShortcutWindow()
+        return false
     }
 
     private func makeMenu() -> NSMenu {
         let menu = NSMenu()
 
-        let capture = NSMenuItem(title: "Capture Text", action: #selector(captureText), keyEquivalent: Shortcut.menuKey)
-        capture.keyEquivalentModifierMask = Shortcut.menuModifiers
-        capture.target = self
-        menu.addItem(capture)
+        captureItem.target = self
+        menu.addItem(captureItem)
         menu.addItem(.separator())
 
         let lineBreaks = NSMenuItem(title: "Keep Line Breaks", action: #selector(toggleLineBreaks(_:)), keyEquivalent: "")
         lineBreaks.state = UserDefaults.standard.bool(forKey: Self.keepLineBreaksKey) ? .on : .off
         lineBreaks.target = self
         menu.addItem(lineBreaks)
+
+        let changeShortcut = NSMenuItem(title: "Change Shortcut…", action: #selector(showShortcutWindow), keyEquivalent: "")
+        changeShortcut.target = self
+        menu.addItem(changeShortcut)
         menu.addItem(.separator())
 
         menu.addItem(NSMenuItem(title: "Quit LiveSnip", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
         return menu
+    }
+
+    @objc private func showShortcutWindow() {
+        shortcutWindow.show()
+    }
+
+    /// Registers the current shortcut, replacing the previous registration.
+    @discardableResult
+    private func registerHotKey() -> Bool {
+        hotKey = nil
+        hotKey = HotKey(keyCode: Int(shortcut.keyCode), modifiers: shortcut.carbonModifiers) { [weak self] in
+            self?.captureText()
+        }
+        captureItem.keyEquivalent = shortcut.keyEquivalent
+        captureItem.keyEquivalentModifierMask = shortcut.modifiers
+        return hotKey != nil
+    }
+
+    /// Switches to a newly recorded shortcut, keeping the current one if another app already uses it.
+    /// With nil (recording was cancelled), it turns the current shortcut back on.
+    private func finishRecording(_ newShortcut: Shortcut?) -> Bool {
+        guard let newShortcut, newShortcut != shortcut else { return registerHotKey() }
+
+        let previous = shortcut
+        shortcut = newShortcut
+        if registerHotKey() {
+            shortcut.save()
+            return true
+        }
+        shortcut = previous
+        registerHotKey()
+        return false
     }
 
     @objc private func toggleLineBreaks(_ item: NSMenuItem) {
