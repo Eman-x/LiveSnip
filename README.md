@@ -9,6 +9,11 @@
 </p>
 
 <p align="center">
+  <a href="https://eman.sa/livesnip/"><strong>Website</strong></a> ·
+  <a href="https://github.com/Eman-x/LiveSnip/releases/latest/download/LiveSnip.zip"><strong>Download for Mac</strong></a>
+</p>
+
+<p align="center">
   <a href="https://github.com/Eman-x/LiveSnip/releases/latest"><img src="https://img.shields.io/github/v/release/Eman-x/LiveSnip" alt="Latest release"></a>
   <img src="https://img.shields.io/badge/macOS-26%2B-blue" alt="macOS 26 or later">
   <a href="LICENSE"><img src="https://img.shields.io/github/license/Eman-x/LiveSnip" alt="MIT license"></a>
@@ -33,7 +38,7 @@ LiveSnip is a small menu bar app for macOS, like TextSniper but free and open so
 
 ## Install
 
-1. Download the zip from the [latest release](https://github.com/Eman-x/LiveSnip/releases/latest), unzip it, and move **LiveSnip** to **Applications**.
+1. Download the zip from [eman.sa/livesnip](https://eman.sa/livesnip/) or the [latest release](https://github.com/Eman-x/LiveSnip/releases/latest), unzip it, and move **LiveSnip** to **Applications**.
 2. Open it. LiveSnip isn't notarized by Apple, so macOS blocks the first launch. Go to **System Settings → Privacy & Security**, scroll down, and click **Open Anyway**.
 3. Press **⇧⌘2**. When macOS asks, turn LiveSnip on under **Privacy & Security → Screen & System Audio Recording**, then choose **Quit & Reopen**. This lets it see other apps' windows.
 
