@@ -1,18 +1,19 @@
 import AppKit
 
 @MainActor
-final class AppDelegate: NSObject, NSApplicationDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private static let keepLineBreaksKey = "keepLineBreaks"
 
     private let hud = HUD()
     private var statusItem: NSStatusItem!
     private let captureItem = NSMenuItem(title: "Capture Text", action: #selector(AppDelegate.captureText), keyEquivalent: "")
+    private let openAtLoginItem = NSMenuItem(title: "Open at Login", action: #selector(AppDelegate.toggleOpenAtLogin(_:)), keyEquivalent: "")
     private var shortcut = Shortcut.saved
     private var hotKey: HotKey?
     private var isCapturing = false
     private var requestedScreenAccess = false
 
-    private lazy var shortcutWindow = ShortcutWindowController(
+    private lazy var settingsWindow = SettingsWindowController(
         shortcut: shortcut,
         beginRecording: { [weak self] in self?.hotKey = nil },
         finishRecording: { [weak self] in self?.finishRecording($0) ?? false })
@@ -24,20 +25,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         statusItem.button?.image = NSImage(systemSymbolName: "text.viewfinder", accessibilityDescription: "LiveSnip")
         statusItem.menu = makeMenu()
 
-        if registerHotKey() {
-            hud.show(symbol: "text.viewfinder", title: "LiveSnip is running",
-                     detail: "Press \(shortcut.displayName) to capture text")
-        } else {
+        if !registerHotKey() {
             hud.show(symbol: "exclamationmark.triangle", title: "\(shortcut.displayName) is already in use",
                      detail: "Open LiveSnip again to pick another shortcut")
+        } else if !LoginItem.launchedAtLogin {
+            hud.show(symbol: "text.viewfinder", title: "LiveSnip is running",
+                     detail: "Press \(shortcut.displayName) to capture text")
         }
     }
 
-    /// Opening LiveSnip while it's running shows the shortcut window, which helps when the
+    /// Opening LiveSnip while it's running shows its settings, which helps when the
     /// menu bar is too full to show the icon.
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
-        showShortcutWindow()
+        settingsWindow.show(recording: false)
         return false
+    }
+
+    func menuNeedsUpdate(_ menu: NSMenu) {
+        // Login items can also be changed in System Settings, so check each time the menu opens.
+        openAtLoginItem.state = LoginItem.isEnabled ? .on : .off
     }
 
     private func makeMenu() -> NSMenu {
@@ -52,17 +58,30 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         lineBreaks.target = self
         menu.addItem(lineBreaks)
 
-        let changeShortcut = NSMenuItem(title: "Change Shortcut…", action: #selector(showShortcutWindow), keyEquivalent: "")
+        openAtLoginItem.target = self
+        menu.addItem(openAtLoginItem)
+
+        let changeShortcut = NSMenuItem(title: "Change Shortcut…", action: #selector(changeShortcut), keyEquivalent: "")
         changeShortcut.target = self
         menu.addItem(changeShortcut)
         menu.addItem(.separator())
 
         menu.addItem(NSMenuItem(title: "Quit LiveSnip", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
+        menu.delegate = self
         return menu
     }
 
-    @objc private func showShortcutWindow() {
-        shortcutWindow.show()
+    @objc private func changeShortcut() {
+        settingsWindow.show(recording: true)
+    }
+
+    @objc private func toggleOpenAtLogin(_ item: NSMenuItem) {
+        do {
+            try LoginItem.setEnabled(item.state != .on)
+        } catch {
+            hud.show(symbol: "exclamationmark.triangle", title: "Couldn't change Open at Login",
+                     detail: error.localizedDescription)
+        }
     }
 
     /// Registers the current shortcut, replacing the previous registration.

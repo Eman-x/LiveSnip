@@ -1,11 +1,12 @@
 import AppKit
 import Carbon.HIToolbox
 
-/// A small window that records a new shortcut for Capture Text.
+/// A small window for LiveSnip's settings: the Capture Text shortcut and opening at login.
 @MainActor
-final class ShortcutWindowController: NSWindowController, NSWindowDelegate {
+final class SettingsWindowController: NSWindowController, NSWindowDelegate {
     private let recorder = NSButton()
     private let message = NSTextField(wrappingLabelWithString: "")
+    private let openAtLogin = NSButton(checkboxWithTitle: "Open LiveSnip at login", target: nil, action: nil)
     private var shortcut: Shortcut
     private var monitor: Any?
     /// Called before recording, so pressing the current shortcut doesn't start a capture.
@@ -21,7 +22,7 @@ final class ShortcutWindowController: NSWindowController, NSWindowDelegate {
         super.init(window: NSWindow(contentRect: .zero, styleMask: [.titled, .closable], backing: .buffered, defer: false))
 
         let content = makeContent()
-        window?.title = "Capture Shortcut"
+        window?.title = "LiveSnip Settings"
         window?.isReleasedWhenClosed = false
         window?.delegate = self
         window?.contentView = content
@@ -32,12 +33,17 @@ final class ShortcutWindowController: NSWindowController, NSWindowDelegate {
         fatalError("init(coder:) is not supported")
     }
 
-    func show() {
+    /// Shows the window, recording a new shortcut right away if `recording` is true.
+    func show(recording: Bool) {
         recorder.title = shortcut.displayName
-        window?.center()
+        openAtLogin.state = LoginItem.isEnabled ? .on : .off
+        if window?.isVisible == false {
+            setMessage("Click the shortcut to change it.")
+            window?.center()
+        }
         NSApp.activate()
         showWindow(nil)
-        startRecording()
+        if recording { startRecording() }
     }
 
     func windowWillClose(_ notification: Notification) {
@@ -58,24 +64,41 @@ final class ShortcutWindowController: NSWindowController, NSWindowDelegate {
         message.alignment = .center
         message.preferredMaxLayoutWidth = prompt.intrinsicContentSize.width
 
+        let separator = NSBox()
+        separator.boxType = .separator
+        openAtLogin.target = self
+        openAtLogin.action = #selector(toggleOpenAtLogin)
+
         let standard = NSButton(title: "Use \(Shortcut.standard.displayName)", target: self, action: #selector(useStandard))
         let done = NSButton(title: "Done", target: self, action: #selector(NSWindowController.close))
         done.keyEquivalent = "\r"
         let buttons = NSStackView(views: [standard, done])
         buttons.distribution = .equalSpacing
 
-        let stack = NSStackView(views: [prompt, recorder, message, buttons])
+        let stack = NSStackView(views: [prompt, recorder, message, separator, openAtLogin, buttons])
         stack.orientation = .vertical
         stack.spacing = 14
         stack.setCustomSpacing(8, after: recorder)
+        stack.setCustomSpacing(18, after: openAtLogin)
         stack.edgeInsets = NSEdgeInsets(top: 20, left: 24, bottom: 20, right: 24)
         // Size the window to the prompt, with every row inside the side insets.
         NSLayoutConstraint.activate([
             stack.widthAnchor.constraint(equalTo: prompt.widthAnchor, constant: 48),
             message.widthAnchor.constraint(equalTo: stack.widthAnchor, constant: -48),
+            separator.widthAnchor.constraint(equalTo: stack.widthAnchor, constant: -48),
+            openAtLogin.widthAnchor.constraint(equalTo: stack.widthAnchor, constant: -48),
             buttons.widthAnchor.constraint(equalTo: stack.widthAnchor, constant: -48),
         ])
         return stack
+    }
+
+    @objc private func toggleOpenAtLogin() {
+        do {
+            try LoginItem.setEnabled(openAtLogin.state == .on)
+        } catch {
+            setMessage(error.localizedDescription, isError: true)
+        }
+        openAtLogin.state = LoginItem.isEnabled ? .on : .off
     }
 
     @objc private func startRecording() {

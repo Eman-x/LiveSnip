@@ -28,7 +28,7 @@ LiveSnip is a small menu bar app for macOS, like TextSniper but free and open so
 - **Live Text accuracy.** Uses VisionKit's `ImageAnalyzer`, the same on-device engine as Live Text in Photos and Preview. Nothing leaves your Mac.
 - **English, Arabic, Spanish, and more.** Reads every language Live Text does, accents and right-to-left text included. That also covers Chinese, Japanese, Korean, French, German, Portuguese, and others.
 - **Your shortcut.** Keep ⇧⌘2 or record any shortcut you like.
-- **Stays out of the way.** Lives in the menu bar, confirms each copy with a small toast, and never steals focus.
+- **Stays out of the way.** Lives in the menu bar, can open at login, confirms each copy with a small toast, and never steals focus.
 - **Keep or join lines.** Keep the original line breaks, or turn them off to get one clean paragraph.
 
 <p align="center">
@@ -52,7 +52,7 @@ Requires macOS 26 Tahoe or later, on Apple Silicon or Intel.
 | **⇧⌘2**, then **Space**, then click a window | Copy the text in a window |
 | **Esc** | Cancel |
 
-To use a different shortcut, choose **Change Shortcut…** from the menu bar icon and press the keys you want. If your menu bar is too full to show the icon, open LiveSnip again from Applications or Spotlight to get the same window.
+To use a different shortcut, choose **Change Shortcut…** from the menu bar icon and press the keys you want. To start LiveSnip with your Mac, choose **Open at Login**. If your menu bar is too full to show the icon, open LiveSnip again from Applications or Spotlight to get its settings window, which has both.
 
 The menu also has **Keep Line Breaks** and **Quit**.
 
