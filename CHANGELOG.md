@@ -2,6 +2,19 @@
 
 All notable changes to LiveSnip are documented here. The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and LiveSnip follows [Semantic Versioning](https://semver.org/).
 
+## [1.3.0] - 2026-09-26
+
+### Added
+
+- A **Permissions** tab showing whether Screen Recording is allowed: a green check when it is, and a button to the right page of System Settings when it isn't. LiveSnip opens it automatically when the permission is missing, and once more after it's allowed, to confirm it worked.
+- An **About** tab with the version and a **Send Feedback…** button that emails me@eman.sa.
+- **Settings…** and **About LiveSnip** in the menu, plus **Allow Screen Recording…** while the permission is missing.
+
+### Changed
+
+- Settings is now a window with tabs. **General** has the shortcut, **Open at Login**, and **Keep Line Breaks**, so everything in the menu is also there.
+- Pressing the shortcut without Screen Recording opens the Permissions tab instead of System Settings.
+
 ## [1.2.0] - 2026-09-26
 
 ### Added
@@ -33,6 +46,7 @@ All notable changes to LiveSnip are documented here. The format is based on [Kee
 - `--ocr <image>` command-line mode that prints the text in an image file.
 - Universal build for Apple Silicon and Intel Macs running macOS 26 or later.
 
+[1.3.0]: https://github.com/Eman-x/LiveSnip/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/Eman-x/LiveSnip/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/Eman-x/LiveSnip/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/Eman-x/LiveSnip/releases/tag/v1.0.0

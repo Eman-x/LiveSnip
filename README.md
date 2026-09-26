@@ -40,7 +40,7 @@ LiveSnip is a small menu bar app for macOS, like TextSniper but free and open so
 
 1. Download the zip from [eman.sa/livesnip](https://eman.sa/livesnip/) or the [latest release](https://github.com/Eman-x/LiveSnip/releases/latest), unzip it, and move **LiveSnip** to **Applications**.
 2. Open it. LiveSnip isn't notarized by Apple, so macOS blocks the first launch. Go to **System Settings → Privacy & Security**, scroll down, and click **Open Anyway**.
-3. Press **⇧⌘2**. When macOS asks, turn LiveSnip on under **Privacy & Security → Screen & System Audio Recording**, then choose **Quit & Reopen**. This lets it see other apps' windows.
+3. LiveSnip opens its **Permissions** tab. Click **Open System Settings**, turn LiveSnip on under **Screen & System Audio Recording**, then choose **Quit & Reopen**. A green check confirms it's done. This lets it see other apps' windows.
 
 Requires macOS 26 Tahoe or later, on Apple Silicon or Intel.
 
@@ -52,7 +52,7 @@ Requires macOS 26 Tahoe or later, on Apple Silicon or Intel.
 | **⇧⌘2**, then **Space**, then click a window | Copy the text in a window |
 | **Esc** | Cancel |
 
-To use a different shortcut, choose **Change Shortcut…** from the menu bar icon and press the keys you want. To start LiveSnip with your Mac, choose **Open at Login**. If your menu bar is too full to show the icon, open LiveSnip again from Applications or Spotlight to get its settings window, which has both.
+To use a different shortcut, choose **Change Shortcut…** from the menu bar icon and press the keys you want. To start LiveSnip with your Mac, choose **Open at Login**. **Settings…** has all of this plus the permission status, and its **About** tab has a **Send Feedback** button. If your menu bar is too full to show the icon, open LiveSnip again from Applications or Spotlight to get the settings window.
 
 The menu also has **Keep Line Breaks** and **Quit**.
 

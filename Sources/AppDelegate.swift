@@ -2,16 +2,17 @@ import AppKit
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
-    private static let keepLineBreaksKey = "keepLineBreaks"
+    static let keepLineBreaksKey = "keepLineBreaks"
 
     private let hud = HUD()
     private var statusItem: NSStatusItem!
+    private let permissionItem = NSMenuItem(title: "Allow Screen Recording…", action: #selector(AppDelegate.showPermissions), keyEquivalent: "")
     private let captureItem = NSMenuItem(title: "Capture Text", action: #selector(AppDelegate.captureText), keyEquivalent: "")
+    private let lineBreaksItem = NSMenuItem(title: "Keep Line Breaks", action: #selector(AppDelegate.toggleLineBreaks(_:)), keyEquivalent: "")
     private let openAtLoginItem = NSMenuItem(title: "Open at Login", action: #selector(AppDelegate.toggleOpenAtLogin(_:)), keyEquivalent: "")
     private var shortcut = Shortcut.saved
     private var hotKey: HotKey?
     private var isCapturing = false
-    private var requestedScreenAccess = false
 
     private lazy var settingsWindow = SettingsWindowController(
         shortcut: shortcut,
@@ -25,10 +26,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         statusItem.button?.image = NSImage(systemSymbolName: "text.viewfinder", accessibilityDescription: "LiveSnip")
         statusItem.menu = makeMenu()
 
-        if !registerHotKey() {
+        let hotKeyRegistered = registerHotKey()
+        // Missing screen recording opens the Permissions tab to allow it. On the launch after it's
+        // allowed (usually from Quit & Reopen), the tab opens once more to show the green check.
+        let showPermissions = !ScreenRecording.isAllowed || ScreenRecording.awaitingConfirmation
+        if showPermissions {
+            if ScreenRecording.isAllowed { ScreenRecording.awaitingConfirmation = false }
+            settingsWindow.show(.permissions)
+        }
+
+        if !hotKeyRegistered {
             hud.show(symbol: "exclamationmark.triangle", title: "\(shortcut.displayName) is already in use",
                      detail: "Open LiveSnip again to pick another shortcut")
-        } else if !LoginItem.launchedAtLogin {
+        } else if !showPermissions && !LoginItem.launchedAtLogin {
             hud.show(symbol: "text.viewfinder", title: "LiveSnip is running",
                      detail: "Press \(shortcut.displayName) to capture text")
         }
@@ -37,42 +47,59 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     /// Opening LiveSnip while it's running shows its settings, which helps when the
     /// menu bar is too full to show the icon.
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
-        settingsWindow.show(recording: false)
+        settingsWindow.show(ScreenRecording.isAllowed ? .general : .permissions)
         return false
     }
 
     func menuNeedsUpdate(_ menu: NSMenu) {
-        // Login items can also be changed in System Settings, so check each time the menu opens.
+        // These can also change in System Settings or the settings window, so check each time the menu opens.
+        permissionItem.isHidden = ScreenRecording.isAllowed
+        lineBreaksItem.state = UserDefaults.standard.bool(forKey: Self.keepLineBreaksKey) ? .on : .off
         openAtLoginItem.state = LoginItem.isEnabled ? .on : .off
     }
 
     private func makeMenu() -> NSMenu {
         let menu = NSMenu()
 
-        captureItem.target = self
-        menu.addItem(captureItem)
+        permissionItem.image = NSImage(systemSymbolName: "exclamationmark.triangle.fill", accessibilityDescription: nil)
+        for item in [permissionItem, captureItem] {
+            item.target = self
+            menu.addItem(item)
+        }
         menu.addItem(.separator())
-
-        let lineBreaks = NSMenuItem(title: "Keep Line Breaks", action: #selector(toggleLineBreaks(_:)), keyEquivalent: "")
-        lineBreaks.state = UserDefaults.standard.bool(forKey: Self.keepLineBreaksKey) ? .on : .off
-        lineBreaks.target = self
-        menu.addItem(lineBreaks)
-
-        openAtLoginItem.target = self
-        menu.addItem(openAtLoginItem)
 
         let changeShortcut = NSMenuItem(title: "Change Shortcut…", action: #selector(changeShortcut), keyEquivalent: "")
-        changeShortcut.target = self
-        menu.addItem(changeShortcut)
+        for item in [lineBreaksItem, openAtLoginItem, changeShortcut] {
+            item.target = self
+            menu.addItem(item)
+        }
         menu.addItem(.separator())
 
+        let settings = NSMenuItem(title: "Settings…", action: #selector(showSettings), keyEquivalent: ",")
+        let about = NSMenuItem(title: "About LiveSnip", action: #selector(showAbout), keyEquivalent: "")
+        for item in [settings, about] {
+            item.target = self
+            menu.addItem(item)
+        }
         menu.addItem(NSMenuItem(title: "Quit LiveSnip", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
         menu.delegate = self
         return menu
     }
 
+    @objc private func showPermissions() {
+        settingsWindow.show(.permissions)
+    }
+
+    @objc private func showSettings() {
+        settingsWindow.show(.general)
+    }
+
+    @objc private func showAbout() {
+        settingsWindow.show(.about)
+    }
+
     @objc private func changeShortcut() {
-        settingsWindow.show(recording: true)
+        settingsWindow.show(.general, recording: true)
     }
 
     @objc private func toggleOpenAtLogin(_ item: NSMenuItem) {
@@ -119,7 +146,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     @objc private func captureText() {
-        guard !isCapturing, hasScreenAccess() else { return }
+        guard !isCapturing else { return }
+        // Without screen recording, a capture would only show the wallpaper, so explain what's missing instead.
+        guard ScreenRecording.isAllowed else {
+            settingsWindow.show(.permissions)
+            return
+        }
         isCapturing = true
 
         let imageURL = FileManager.default.temporaryDirectory.appendingPathComponent("LiveSnip-\(UUID().uuidString).png")
@@ -164,20 +196,5 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             hud.show(symbol: "exclamationmark.triangle", title: "Couldn't read the text",
                      detail: error.localizedDescription)
         }
-    }
-
-    /// Screen recording permission lets the capture include other apps' windows, not just the wallpaper.
-    private func hasScreenAccess() -> Bool {
-        if CGPreflightScreenCaptureAccess() { return true }
-
-        if requestedScreenAccess {
-            NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture")!)
-        } else {
-            requestedScreenAccess = true
-            CGRequestScreenCaptureAccess()
-        }
-        hud.show(symbol: "lock", title: "Allow screen recording",
-                 detail: "Turn on LiveSnip in System Settings, then reopen it")
-        return false
     }
 }
